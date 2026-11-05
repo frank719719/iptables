@@ -1,0 +1,29 @@
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      addresses:
+        - 192.168.50.30/24
+
+    enp0s9:
+      addresses:
+        - 192.168.255.6/30
+      routes:
+        - to: default
+          via: 192.168.255.5
+        - to: 192.168.0.0/16
+          via: 192.168.255.5
+        - to: 192.168.2.0/24
+          via: 192.168.255.5
+
+    enp0s10:
+      addresses:
+        - 192.168.1.1/25
+
+    enp0s16:
+      addresses:
+        - 192.168.1.129/26
+
+    enp0s17:
+      addresses:
+        - 192.168.1.193/26

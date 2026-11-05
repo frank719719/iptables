@@ -1,0 +1,12 @@
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      addresses:
+        - 192.168.50.12/24
+    enp0s9:
+      addresses:
+        - 192.168.0.2/28
+      routes:
+        - to: default
+          via: 192.168.0.1

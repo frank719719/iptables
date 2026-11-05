@@ -1,0 +1,25 @@
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+#
+-A FORWARD -p tcp -d 192.168.0.2 --dport 80 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+COMMIT
+
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+# Правило для того что бы работал доступ с любого другого устройства в сети при обращении к хостовой машине
+# Проброс порта 8080 на порт 9090 хостовой машины настроен в vagrantfile
+-A PREROUTING -p tcp -i enp0s3 --dport 8080 -j DNAT --to-destination 192.168.0.2:80
+# Правило для того что бы работал доступ с хоста в виртуальную машину по интерфейсу virtualbox (адрес 192.168.50.14)
+-A PREROUTING -p tcp -i enp0s8 --dport 8080 -j DNAT --to-destination 192.168.0.2:80
+# Подмена адреса источника т.к. внутренний сервер должен отвечать через тот же шлюз обратно во внешнюю сеть
+-A POSTROUTING -d 192.168.0.2 -p tcp --dport 80 -j MASQUERADE
+#-A POSTROUTING ! -d 192.168.0.0/16 -o enp0s3 -j MASQUERADE
+COMMIT

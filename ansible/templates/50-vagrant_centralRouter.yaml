@@ -1,0 +1,41 @@
+network:
+  version: 2
+  ethernets:
+    enp0s8:
+      addresses:
+        - 192.168.50.11/24
+
+    enp0s9:
+      addresses:
+        - 192.168.255.2/30
+      routes:
+        - to: default
+          via: 192.168.255.1
+
+    enp0s10:
+      addresses:
+        - 192.168.0.1/28
+
+    enp0s16:
+      addresses:
+        - 192.168.0.33/28
+
+    enp0s17:
+      addresses:
+        - 192.168.0.65/26
+
+    enp0s18:
+      addresses:
+        - 192.168.255.9/30
+      routes:
+          # маршрут в сети office1 через office1Router
+        - to: 192.168.2.0/24
+          via: 192.168.255.10
+
+    enp0s19:
+      addresses:
+        - 192.168.255.14/30
+      routes:
+          # маршрут в сети office2 через office2Router
+        - to: 192.168.1.0/24
+          via: 192.168.255.6

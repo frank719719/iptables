@@ -1,0 +1,140 @@
+---
+- name: Base setup for all hosts
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install useful packages
+      apt:
+        name:
+          - traceroute
+          - iptables
+          - iptables-persistent
+        state: present
+        update_cache: true
+
+- name: Install nginx on centralServer
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: nstall nginx on centralServer
+      apt:
+        name:
+          - nginx
+        state: present
+        update_cache: true
+      when: ansible_hostname in ["centralServer"]
+
+- name: Setup routers (NAT + forwarding)
+  hosts: routers
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Enable IPv4 forwarding
+      sysctl:
+        name: net.ipv4.conf.all.forwarding
+        value: '1'
+        state: present
+        sysctl_set: true
+        reload: true
+
+    - name: Disable ufw (not needed, using iptables)
+      systemd:
+        name: ufw
+        state: stopped
+        enabled: false
+      ignore_errors: true
+
+    - name: Copy iptables rules file (only inetRouter)
+      template:
+        src: iptables_rules.ipv4
+        dest: /etc/iptables_rules.ipv4
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_hostname in ["inetRouter"]
+
+    - name: Copy iptables rules file (only inetRouter2)
+      template:
+        src: iptables_rules_inetRouter2.ipv4
+        dest: /etc/iptables_rules.ipv4
+        owner: root
+        group: root
+        mode: "0644"
+      when: ansible_hostname in ["inetRouter2"]
+
+    - name: Install iptables-restore systemd unit (only inetRouter)
+      copy:
+        dest: /etc/systemd/system/iptables-restore.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Restore iptables rules
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/sbin/iptables-restore /etc/iptables_rules.ipv4
+          RemainAfterExit=yes
+
+          [Install]
+          WantedBy=multi-user.target
+      when: ansible_hostname in ["inetRouter", "inetRouter2"]
+
+    - name: Enable and start iptables-restore.service (only inetRouter)
+      systemd:
+        name: iptables-restore.service
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: ansible_hostname in ["inetRouter", "inetRouter2"]
+
+
+#    - name: Copy iptables restore script (only inetRouter)
+#      template:
+#        src: iptables_restore
+#        dest: /etc/network/if-pre-up.d/iptables
+#        owner: root
+#        group: root
+#        mode: "0755"
+#      when: ansible_hostname == "inetRouter"
+
+    - name: Apply iptables rules now (only inetRouter)
+      shell: iptables-restore < /etc/iptables_rules.ipv4
+      when: ansible_hostname in ["inetRouter", "inetRouter2"]
+
+- name: Disable default route on eth0 for all except inetRouter
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Disable dhcp routes on eth0
+      template:
+        src: 00-installer-config.yaml
+        dest: /etc/netplan/00-installer-config.yaml
+        owner: root
+        group: root
+        mode: "0600"
+      when: ansible_hostname not in ["inetRouter", "inetRouter2"]
+
+- name: Configure static routes (netplan)
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Copy netplan config with routes
+      template:
+        src: "50-vagrant_{{ ansible_hostname }}.yaml"
+        dest: /etc/netplan/50-vagrant.yaml
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Apply netplan
+      command: netplan apply
+
+    - name: Reboot to verify persistence
+      reboot:
+        reboot_timeout: 600
